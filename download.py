@@ -102,8 +102,11 @@ def consumer(args, queue):
                 if not os.path.exists(dir):
                     os.mkdir(dir)
                 response = requests.get(url, stream=True, timeout=args.timeout)
-                image = Image.open(read_image(response, args.min_dim))
-                image.save(saving_path)
+                if response.status_code == 200:
+                    image = Image.open(read_image(response, args.min_dim))
+                    image.save(saving_path)
+                else:
+                    log.warning('url' + url + "error " + response.status_code)
             except Exception:
                 log.warning('error {}'.format(traceback.format_exc()))
             #else:
