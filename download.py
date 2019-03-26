@@ -54,6 +54,13 @@ def parse_args():
     return parser.parse_args()
 
 
+def count_lines(f):
+    f.seek(0)
+    s = sum([1 for line in f])
+    f.seek(0)
+    return s
+    
+
 def scale(content, min_dim):
     """ Aspect-ratio preserving scale such that the smallest dim is equal to `min_dim` """
 
@@ -127,18 +134,11 @@ def producer(args, queue):
     """ Populate the queue with image_id, url pairs. """
     print('opening file')
     with open(args.input, newline='\n') as f:
-        print('Reading File : ')
+        file_size = count_lines(f)
         for i, row in enumerate(f):
-            if i < 40700000:
-                continue
-
-            s = row.split('\t')
-            if '0' in s[-1] :
-                url = s[16]
-                id = s[1]
-                queue.put([id, url], block=True, timeout=None)
-                #print("%2.2f" % (i/100000000.0)*100.0 , '\%', end='\r')
-                print("%2.5f"% ((i/100000000.0)*100.0), '\%', end='\r')
+            id, url = row.split('\t')
+            queue.put([id, url], block=True, timeout=None)
+            print("%2.5f"% ((i/file_size)*100.0), '\%', end='\r')
 
     queue.close()
 
