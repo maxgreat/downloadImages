@@ -40,11 +40,11 @@ def parse_args():
                         help='image download timeout')
     parser.add_argument('-c','--consumers', type=int, default=36,
                         help='number of download workers')
-    parser.add_argument('--min-dim', type=int, default=256,
+    parser.add_argument('--min-dim', type=int, default=-1,
                         help='smallest dimension for the aspect ratio preserving scale'
                              '(-1 for no scale)')
-    parser.add_argument('--sub-dirs', type=int, default=1000,
-                        help='number of directories to split downloads over')
+    parser.add_argument('--subdirs', default=False,
+                        help='split into sub directories')
     parser.add_argument('--force', default=False, action='store_true',
                         help='force download and overwrite local files')
 
@@ -83,8 +83,11 @@ def read_image(response, min_dim):
     content = six.BytesIO()
     shutil.copyfileobj(response.raw, content)
     content.seek(0)
-    return content
-    #return scale(content, min_dim)
+    
+    if min_dim > 0 :
+        return scale(content, min_dim)
+    else:
+        return content
 
 
 def consumer(args, queue):
@@ -95,12 +98,16 @@ def consumer(args, queue):
 
     while not queue.empty():
         id, url = queue.get(block=True, timeout=None)
-        dir = args.output + id[:3]
-        saving_path = args.output + id[:3] + '/' + id + '.jpg'
-        if not os.path.exists(saving_path) and not os.path.exists('/data/yfcc/'+id+'.jpg'):
+        
+        if args.subdirs:
+            dir = args.output + id[:3]
+            saving_path = args.output + id[:3] + '/' + id + '.jpg'
+        else:
+            dir = args.output
+            saving_path = args.output + id + '.jpg'
+            
+        if not os.path.exists(saving_path):
             try:
-                if not os.path.exists(dir):
-                    os.mkdir(dir)
                 response = requests.get(url, stream=True, timeout=args.timeout)
                 image = Image.open(read_image(response, args.min_dim))
                 image.save(saving_path)
@@ -126,7 +133,7 @@ def producer(args, queue):
                 continue
 
             s = row.split('\t')
-            if '0' in s[-1] : #it's a photo
+            if '0' in s[-1] :
                 url = s[16]
                 id = s[1]
                 queue.put([id, url], block=True, timeout=None)
